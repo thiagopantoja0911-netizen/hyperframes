@@ -26,7 +26,7 @@ jobs:
       - name: Install workspaces
         run: bun install --frozen-lockfile
       - name: Test temporal sub-frame export
-        run: bunx vitest run packages/engine/src/services/motionBlur.test.ts packages/cli/src/commands/render/plan.test.ts packages/cli/src/commands/render/execute.test.ts packages/producer/src/renderRequest.test.ts
+        run: bunx --bun vitest run packages/engine/src/services/motionBlur.test.ts packages/cli/src/commands/render/plan.test.ts packages/cli/src/commands/render/execute.test.ts packages/producer/src/renderRequest.test.ts
       - name: Typecheck engine
         run: bun run --cwd packages/engine typecheck
       - name: Typecheck producer
