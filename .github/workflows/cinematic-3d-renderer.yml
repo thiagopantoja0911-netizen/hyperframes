@@ -35,5 +35,7 @@ jobs:
         run: bun run --cwd packages/engine typecheck
       - name: Typecheck producer
         run: bun run --cwd packages/producer typecheck
+      - name: Build inspector live exports needed by CLI types
+        run: bun run --cwd packages/inspector build
       - name: Typecheck CLI
         run: bun run --cwd packages/cli typecheck
