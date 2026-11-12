@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   ADAPTIVE_SAMPLE_STEPS,
+  CINEMATIC_3D_MOTION_BLUR,
   MAX_SAMPLES_PER_FRAME,
   MotionBlurAccumulator,
   adaptiveSampleCount,
@@ -45,6 +46,27 @@ const average = (
   }
   return accumulator.finish();
 };
+
+describe("Native cinematic 3D shutter", () => {
+  it("uses 32 true sub-frame samples and a linear-light centred 180-degree shutter", () => {
+    expect(CINEMATIC_3D_MOTION_BLUR).toEqual({
+      samplesPerFrame: 32,
+      shutterAngle: 180,
+      shutterPhase: -90,
+      blend: "linear",
+    });
+    expect(Object.isFrozen(CINEMATIC_3D_MOTION_BLUR)).toBe(true);
+    const plan = resolveMotionBlurPlan(CINEMATIC_3D_MOTION_BLUR);
+    expect(plan?.blend).toBe("linear");
+    expect(plan?.fixedSamplesPerFrame).toBe(32);
+    if (!plan) throw new Error("Cinematic blur plan missing");
+    const times = motionBlurSampleTimes(plan, 20, 60, 32);
+    expect(times).toHaveLength(32);
+    expect(new Set(times).size).toBe(32);
+    expect(times[0]).toBeLessThan(20 / 60);
+    expect(times[31]).toBeGreaterThan(20 / 60);
+  });
+});
 
 describe("resolveMotionBlurPlan", () => {
   it("is off when no options are given", () => {

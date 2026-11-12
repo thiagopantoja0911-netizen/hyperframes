@@ -1,0 +1,50 @@
+---
+title: "Cinematic 3D Motion Blur"
+description: "Render Three.js/WebGL scenes with native temporal shutter samples and linear-light accumulation."
+---
+
+# Cinematic 3D motion blur
+
+A 3D canvas changes internally at each timestamp. A DOM element-level blur filter can move
+the canvas box but cannot integrate the geometry and reflections moving **inside** it.
+The opt-in `--cinematic-motion-blur` render flag uses the engine's native sub-frame
+capture path instead. It integrates the full rendered composition, including WebGL pixels.
+
+```bash
+hyperframes render --cinematic-motion-blur --fps 60 --quality delivery \
+  --resolution portrait-4k -o cinematic.mp4
+```
+
+The opt-in profile uses:
+
+- 32 real sub-frame screenshots per output frame, not 32 identical frames or an interpolated visual effect.
+- A 180-degree shutter window centred on the output frame (phase -90 degrees), familiar from After Effects.
+- Linear-light accumulation, which preserves physically brighter motion at specular edges.
+- The screenshot capture route, avoiding BeginFrame and drawElement sampling incompatibilities.
+- Automatic disabling of authored element-level blur to prevent double smearing.
+
+These are **render controls**, not 3D authoring tools. Build a deterministic Three.js/WebGL
+composition whose `hf-seek` handler redraws exactly for `e.detail.time` and registers
+asynchronous readiness with `window.__hf.buildReady` and `e.detail.waitUntil`.
+
+## Cost and limits
+
+32 screenshots per output frame are expensive: a 15-second 60fps film requests roughly
+28,800 sub-frame captures. Benchmark at 540 × 960 first, then 1080p; use a true 4K
+export only after the motion and material quality are approved.
+
+This mode only supports local SDR captures. The CLI rejects `--docker`,
+`--hdr`, `--experimental-fast-capture` and partial `--start`/`--end`
+render paths rather than claiming that an unsupported route produced blur.
+Content that automatically requires the HDR/layered compositor may still fail
+with an explicit unsupported-route error. Distributed rendering is not supported.
+
+Do not infer quality from resolution or FPS: inspect the actual MP4 for temporal
+judder, blur length, text legibility, GPU artifacts, audio sync and creative clarity.
+
+## MediaForge integration
+
+A MediaForge Worker running the **public npm version** will not understand this flag
+until it uses a tested build of this HyperFrames fork. Keep the currently working
+Worker unchanged until the fork builds, targeted engine tests pass and an actual
+Windows render has been compared against the current baseline.

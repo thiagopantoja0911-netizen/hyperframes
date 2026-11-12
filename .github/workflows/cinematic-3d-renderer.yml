@@ -1,0 +1,41 @@
+name: Cinematic 3D renderer tests
+
+on:
+  push:
+    branches: [feature/cinematic-3d-subframe-export]
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/engine/src/services/motionBlur.*'
+      - 'packages/engine/src/index.ts'
+      - 'packages/cli/src/commands/render.ts'
+      - 'packages/cli/src/commands/render/**'
+      - 'packages/producer/src/renderRequest.*'
+      - '.github/workflows/cinematic-3d-renderer.yml'
+
+jobs:
+  cinematic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install workspaces
+        run: bun install --frozen-lockfile
+      - name: Build monorepo prerequisites
+        run: |
+          bun run --filter '@hyperframes/{parsers,lint,studio-server,share}' build
+          bun run --filter @hyperframes/core build
+      - name: Test temporal sub-frame export
+        run: bunx --bun vitest run packages/engine/src/services/motionBlur.test.ts packages/cli/src/commands/render/plan.test.ts packages/cli/src/commands/render/execute.test.ts packages/producer/src/renderRequest.test.ts
+      - name: Typecheck engine
+        run: bun run --cwd packages/engine typecheck
+      - name: Typecheck producer
+        run: bun run --cwd packages/producer typecheck
+      - name: Build inspector live exports needed by CLI types
+        run: bun run --cwd packages/inspector build
+      - name: Typecheck CLI
+        run: bun run --cwd packages/cli typecheck

@@ -42,6 +42,7 @@ export const examples: Example[] = [
     "hyperframes render --format hls --output stream/",
   ],
   ["High quality at 60fps", "hyperframes render --fps 60 --quality high --output hd.mp4"],
+  ["Cinematic 3D temporal shutter", "hyperframes render --cinematic-motion-blur --fps 60 --quality delivery --output cinematic.mp4"],
   ["Deterministic render via Docker", "hyperframes render --docker --output deterministic.mp4"],
   ["Parallel rendering with 6 workers", "hyperframes render --workers 6 --output fast.mp4"],
   ["Opt out of browser GPU render", "hyperframes render --no-browser-gpu --output cpu.mp4"],
@@ -244,6 +245,14 @@ export default defineCommand({
       type: "string",
       description:
         "Set off to disable authored page motion blur. Omit to keep the composition's setting.",
+    },
+    "cinematic-motion-blur": {
+      type: "boolean",
+      default: false,
+      description:
+        "Native After Effects-style 180 degree shutter: 32 true sub-frame screenshots " +
+        "blended in linear light, including Three.js/WebGL pixels. Very costly at 4K; " +
+        "requires local SDR screenshot mode. Automatically disables authored page blur.",
     },
     workers: {
       type: "string",
@@ -561,6 +570,8 @@ export interface RenderOptions {
   bufferSize?: string;
   videoFrameFormat?: VideoFrameFormat;
   pageMotionBlur?: "off";
+  /** Temporal full-frame sampling, including accelerated WebGL canvases. */
+  motionBlur?: import("@hyperframes/engine").MotionBlurOptions;
   quiet: boolean;
   debug?: boolean;
   /** Segmented capture: reuse a prior run's validated segments. */
@@ -1145,6 +1156,9 @@ async function executeLocalRender(
 
   const engineConfig = producer.resolveConfig({
     browserGpuMode: options.browserGpuMode ?? "software",
+    // Sub-frame capture requires screenshot mode; BeginFrame/drawElement cannot
+    // produce the distinct WebGL samples that the accumulator needs.
+    ...(options.motionBlur ? { forceScreenshot: true } : {}),
     // Local auto opts out of the software-GPU screenshot clamp, and a BeginFrame that draws no first frame
     // retries by screenshot. Docker and --no-browser-gpu request software; --resolution supersamples via screenshot.
     ...(options.browserGpuMode === "auto" &&
@@ -1183,6 +1197,7 @@ async function executeLocalRender(
       bufferSize: options.bufferSize,
       videoFrameFormat: options.videoFrameFormat,
       pageMotionBlur: options.pageMotionBlur,
+      motionBlur: options.motionBlur,
       variables: options.variables,
       entryFile: options.entryFile,
       outputResolution: options.outputResolution,

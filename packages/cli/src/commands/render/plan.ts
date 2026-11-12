@@ -17,6 +17,8 @@ import {
   MAX_VP9_CPU_USED,
   MIN_VP9_CPU_USED,
   isVideoFrameFormat,
+  CINEMATIC_3D_MOTION_BLUR,
+  type MotionBlurOptions,
   type ProresProfile,
   type VideoFrameFormat,
 } from "@hyperframes/engine";
@@ -81,6 +83,7 @@ export interface RenderCommandArgs {
   "hls-segment-seconds"?: string;
   "video-frame-format"?: string;
   "page-motion-blur"?: string;
+  "cinematic-motion-blur"?: boolean;
   workers?: string;
   docker?: boolean;
   hdr?: boolean;
@@ -142,6 +145,7 @@ export interface RenderPlan {
   hlsSegmentSeconds?: number;
   videoFrameFormat: VideoFrameFormat;
   pageMotionBlur?: "off";
+  motionBlur?: MotionBlurOptions;
   outputResolution?: CanvasResolution;
   outputResolutionAspectAgnostic: boolean;
   outputResolutionRaw?: string;
@@ -293,9 +297,21 @@ function resolveHfEnvOverrides(): readonly string[] {
 /** Parse and validate command input into an immutable execution plan. */
 // fallow-ignore-next-line complexity
 export function createRenderPlan(args: RenderCommandArgs, now = new Date()): RenderPlan {
-  const pageMotionBlur = parseEnumFlag(args["page-motion-blur"], ["off"] as const, {
+  const authoredPageBlur = parseEnumFlag(args["page-motion-blur"], ["off"] as const, {
     flag: "--page-motion-blur",
   });
+  const cinematic = args["cinematic-motion-blur"] === true;
+  if (cinematic && (args.docker || args.hdr || args["experimental-fast-capture"])) {
+    errorBox("Cinematic motion blur unavailable",
+      "Native sub-frame blur requires a local SDR screenshot render without experimental fast capture.",
+      "Remove --docker, --hdr or --experimental-fast-capture.");
+    failUsage();
+  }
+  // Disable element-level filter blur to avoid doubling shutter smears; native
+  // sub-frame accumulation captures the ENTIRE canvas, including WebGL pixels.
+  const pageMotionBlur = cinematic ? "off" : authoredPageBlur;
+  const motionBlur: MotionBlurOptions | undefined = cinematic
+    ? { ...CINEMATIC_3D_MOTION_BLUR } : undefined;
   const hfEnvOverrides = resolveHfEnvOverrides();
   const hasExplicitComposition = hasExplicitCompositionArg(args.composition);
   const project = resolveProject(args.dir, { requireIndex: !hasExplicitComposition });
@@ -601,6 +617,12 @@ export function createRenderPlan(args: RenderCommandArgs, now = new Date()): Ren
   }
 
   const range = parseRenderRange(args, format, fps, args.hdr);
+  if (cinematic && range) {
+    errorBox("Cinematic motion blur unavailable",
+      "Native sub-frame blur cannot run through a distributed/range render.",
+      "Render the entire composition without --start or --end.");
+    failUsage();
+  }
   const quiet = args.quiet ?? false;
   const batchJson = args.json ?? false;
   return Object.freeze({
@@ -619,6 +641,7 @@ export function createRenderPlan(args: RenderCommandArgs, now = new Date()): Ren
     hlsSegmentSeconds,
     videoFrameFormat: videoFrameFormatRaw,
     pageMotionBlur,
+    motionBlur,
     outputResolution,
     outputResolutionAspectAgnostic,
     outputResolutionRaw: args.resolution,
