@@ -35,6 +35,16 @@ describe("renderOptionsFromPlan", () => {
     },
   );
 
+  it("carries native cinematic blur through single and batch render option paths", () => {
+    const plan = createRenderPlan({ dir: projectDir, "cinematic-motion-blur": true });
+    const expected = {
+      samplesPerFrame: 32, shutterAngle: 180, shutterPhase: -90, blend: "linear"
+    };
+    expect(renderOptionsFromPlan(plan, undefined, undefined).motionBlur).toEqual(expected);
+    expect(batchRowRenderOptions(plan, undefined).motionBlur).toEqual(expected);
+    expect(renderOptionsFromPlan(plan, undefined, undefined).pageMotionBlur).toBe("off");
+  });
+
   it("carries the segmented resume flags from the plan into the render options", () => {
     // The hop that once dropped --resume / --keep-segments silently; the plan
     // -> options -> request -> config chain is otherwise only exercised by a
