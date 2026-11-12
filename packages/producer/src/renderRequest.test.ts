@@ -66,6 +66,37 @@ describe("RenderRequest", () => {
     ).toBe("off");
   });
 
+  it("serializes cinematic 3D temporal blur to the producer engine", () => {
+    const value = request();
+    delete value.options.distributed;
+    value.options.motionBlur = {
+      samplesPerFrame: 32, shutterAngle: 180, shutterPhase: -90, blend: "linear"
+    };
+    const parsed = parseRenderRequest(serializeRenderRequest(value));
+    expect(parsed.options.motionBlur).toEqual(value.options.motionBlur);
+    expect(renderConfigFromRequest(parsed).motionBlur).toEqual(value.options.motionBlur);
+  });
+
+  it("rejects malformed temporal settings and unsupported distributed routes", () => {
+    const value = request();
+    for (const motionBlur of [
+      { samplesPerFrame: 0 },
+      { samplesPerFrame: 128 },
+      { shutterAngle: 900 },
+      { shutterPhase: -900 },
+      { blend: "log" },
+      { backend: "unknown" }
+    ]) {
+      expect(() => parseRenderRequest({
+        ...value, options: { ...value.options, motionBlur }
+      })).toThrow(/motionBlur/);
+    }
+    expect(() => distributedConfigFromRequest({
+      ...value,
+      options: { ...value.options, motionBlur: { samplesPerFrame: 32 } }
+    })).toThrow(/Distributed render does not support/);
+  });
+
   it("carries the delivery encoder options through every adapter", () => {
     const value = request();
     Object.assign(value.options, {
