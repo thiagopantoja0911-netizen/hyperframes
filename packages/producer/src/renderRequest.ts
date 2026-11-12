@@ -66,6 +66,7 @@ export interface RenderRequestOptions {
   videoFrameFormat?: VideoFrameFormat;
   hdrMode?: RenderConfig["hdrMode"];
   pageMotionBlur?: RenderConfig["pageMotionBlur"];
+  motionBlur?: RenderConfig["motionBlur"];
   variables?: Record<string, unknown>;
   outputResolution?: CanvasResolution;
   outputResolutionAspectAgnostic?: boolean;
@@ -210,6 +211,32 @@ function assertRequestOptionScalars(options: Record<string, unknown>): void {
 }
 
 function assertRequestOptionObjects(options: Record<string, unknown>): void {
+  if (options.motionBlur !== undefined) {
+    if (!isPlainObject(options.motionBlur)) {
+      throw new Error("Render request motionBlur must be an object");
+    }
+    const blur = options.motionBlur;
+    const allowed = new Set(["samplesPerFrame", "shutterAngle", "shutterPhase", "blend"]);
+    for (const key of Object.keys(blur)) {
+      if (!allowed.has(key)) throw new Error("Render request motionBlur." + key + " is unsupported");
+    }
+    const numbers: [string, number, number, boolean][] = [
+      ["samplesPerFrame", 1, 64, true],
+      ["shutterAngle", 0, 720, false],
+      ["shutterPhase", -360, 360, false],
+    ];
+    for (const [name, min, max, integer] of numbers) {
+      const value = blur[name];
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value)
+          || value < min || value > max || (integer && !Number.isInteger(value)))) {
+        throw new Error("Render request motionBlur." + name + " must be "
+          + (integer ? "an integer" : "a finite number") + " between " + min + " and " + max);
+      }
+    }
+    if (blur.blend !== undefined && blur.blend !== "srgb" && blur.blend !== "linear") {
+      throw new Error("Render request motionBlur.blend must be srgb or linear");
+    }
+  }
   validateEngineConfigSnapshot(options.engineConfig);
   if (options.variables !== undefined && !isPlainObject(options.variables)) {
     throw new Error("Render request variables must be a JSON object");
@@ -309,6 +336,9 @@ export function distributedConfigFromRequest(
   }
   if (options.hdrMode === "force-hdr") {
     throw new Error("Distributed render does not support force-hdr");
+  }
+  if (options.motionBlur !== undefined) {
+    throw new Error("Distributed render does not support cinematic sub-frame motion blur");
   }
   return {
     fps: distributedFps(options.fps),
