@@ -1,0 +1,26 @@
+name: MediaForge HyperFrames fork Windows build
+on:
+  push:
+    branches: [feature/cinematic-3d-subframe-export]
+  workflow_dispatch:
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install workspaces
+        run: bun install --frozen-lockfile
+      - name: Build HyperFrames CLI
+        run: bun run build
+      - name: Assert binary entrypoint and cinematic switch
+        shell: pwsh
+        run: |
+          node packages/cli/bin/hyperframes.mjs --version
+          node packages/cli/bin/hyperframes.mjs render --help | Out-File -Encoding utf8 render-help.txt
+          $helpText = Get-Content render-help.txt -Raw
+          if ($helpText -notmatch 'cinematic-motion-blur') { throw 'Cinematic flag missing from CLI help' }
+          Write-Host 'Windows HyperFrames CLI with cinematic temporal blur built successfully.'
