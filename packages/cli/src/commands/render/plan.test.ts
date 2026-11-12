@@ -139,6 +139,27 @@ describe("createRenderPlan", () => {
     );
   });
 
+  it("enables real linear-light sub-frame capture for cinematic motion", () => {
+    const normal = createRenderPlan({ dir: projectDir });
+    expect(normal.motionBlur).toBeUndefined();
+    const cinematic = createRenderPlan({ dir: projectDir, "cinematic-motion-blur": true });
+    expect(cinematic.motionBlur).toEqual({
+      samplesPerFrame: 32,
+      shutterAngle: 180,
+      shutterPhase: -90,
+      blend: "linear",
+    });
+    expect(cinematic.pageMotionBlur).toBe("off");
+  });
+
+  it.each([{ docker: true }, { hdr: true }, { "experimental-fast-capture": true }])(
+    "rejects unsupported cinematic capture route %#", (args) => {
+      expect(() => createRenderPlan({
+        dir: projectDir, "cinematic-motion-blur": true, ...args
+      })).toThrow(CliUsageError);
+    },
+  );
+
   it("preserves an aspect-agnostic resolution alias through the execution plan", () => {
     const plan = createRenderPlan({ dir: projectDir, resolution: "1080p" });
     expect(plan.outputResolution).toBe("landscape");
