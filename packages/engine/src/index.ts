@@ -363,6 +363,7 @@ export { frameFileExtension } from "./services/frameCapture.js";
 export { appendSoftwareEncoderThreadsArg } from "./services/softwareEncoderThreads.js";
 export { frameSequencePath } from "./services/extractedFrameIndex.js";
 export type { MotionBlurOptions, MotionBlurBlendSpace } from "./services/motionBlur.js";
+export { CINEMATIC_3D_MOTION_BLUR } from "./services/motionBlur.js";
 export type { PageMotionBlurOff, PageMotionBlurSummary } from "./types.js";
 
 export {
