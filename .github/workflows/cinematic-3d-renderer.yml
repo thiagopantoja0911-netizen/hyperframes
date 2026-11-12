@@ -25,6 +25,10 @@ jobs:
           bun-version: 1.4.4
       - name: Install workspaces
         run: bun install --frozen-lockfile
+      - name: Build monorepo prerequisites
+        run: |
+          bun run --filter '@hyperframes/{parsers,lint,studio-server,share}' build
+          bun run --filter @hyperframes/core build
       - name: Test temporal sub-frame export
         run: bunx --bun vitest run packages/engine/src/services/motionBlur.test.ts packages/cli/src/commands/render/plan.test.ts packages/cli/src/commands/render/execute.test.ts packages/producer/src/renderRequest.test.ts
       - name: Typecheck engine
