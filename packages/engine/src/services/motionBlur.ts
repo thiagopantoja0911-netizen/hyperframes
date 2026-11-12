@@ -35,6 +35,21 @@ export interface MotionBlurOptions {
 
 export type MotionBlurBlendSpace = "srgb" | "linear";
 
+/**
+ * Native temporal shutter for WebGL/Three.js and other seekable scenes.
+ *
+ * Unlike page element filters, this integrates the entire rendered frame at
+ * 32 distinct sub-frame times. It is opt-in because the screenshot cost is
+ * approximately proportional to the sample count. Linear-light integration
+ * preserves brightness across specular highlights.
+ */
+export const CINEMATIC_3D_MOTION_BLUR: Readonly<Required<MotionBlurOptions>> = Object.freeze({
+  samplesPerFrame: 32,
+  shutterAngle: 180,
+  shutterPhase: -90,
+  blend: "linear",
+});
+
 /** A resolved plan. The window is fixed by shutter angle/phase alone, independent of
  * how many samples fill it, which is what lets the count vary per frame. */
 export interface MotionBlurPlan {
